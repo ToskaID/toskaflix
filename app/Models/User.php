@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
@@ -45,5 +46,39 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function memberships()
+    {
+        return $this->hasMany(Membership::class);
+    }
+
+    public function hasMembershipPlan(): bool
+    {
+        return $this->memberships()
+            ->where('active', true)
+            ->where('end_date', '>', now())
+            ->exists();
+    }
+
+    public function devices()
+    {
+        return $this->hasMany(UserDevice::class);
+    }
+
+    public function getCurrentPlan()
+    {
+        $activeMembership = $this->memberships()
+            ->where('active', true)
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->latest()
+            ->first();
+
+        if (!$activeMembership) {
+            return null;
+        }
+
+        return Plan::find($activeMembership->plan_id);
     }
 }
